@@ -1,6 +1,6 @@
 const { Router } =require('express');
 const router =Router();
-const {getApiPkms} =require('../controllers/index.controllers')
+const {getApiPkms} =require('../controllers/index.controllers');
 require('dotenv').config(); 
 //import { Pokemon, Type } from '../db'; //Datos de la base de datos
 const {pokeURL} = process.env;

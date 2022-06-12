@@ -1,7 +1,7 @@
 const axios =require("axios");
 //const fetch = require("node-fetch");
 require('dotenv').config(); 
-//import { Pokemon, Type } from '../db'; //Datos de la base de datos
+const {Types} =require('../db'); //Datos de la base de datos
 const {pokeURL} = process.env;
 
 //pedimpos datos de api
@@ -37,11 +37,32 @@ const getApiPkms= async()=>{
     return Pokemons; 
 }
 //pedimos datos de db
-const getDbPkms= async()=>{
-  const bd = await Pokemon.findAll({ include: Tipo });
-  console.log(bd);
+//const getDbPkms= async()=>{
+//  const bd = await Pokemon.findAll({ include: Tipo });
+//  console.log(bd);
+//}
+
+
+//pide todos los tipos de pokemon a la API
+async function getAllTypes(){
+  try{
+    let contador=0;
+    let types =(await axios(`${pokeURL}type`)).data.results.map(e=>({id:contador=contador+1, name:e.name}));
+    await Types.bulkCreate(types);
+    console.log("Tipos de pokemon cargados en DB correctamente");
+  }catch(e){
+    console.log(e);
+  }
+}
+
+function getTypesFromDb(req, res,next){
+  Types.findAll()
+  .then(types=>res.send(types))
+  .catch(e=>next(e))
 }
 //unimos todo 
 module.exports={
-    getApiPkms
+    getApiPkms,
+    getAllTypes,
+    getTypesFromDb
 }

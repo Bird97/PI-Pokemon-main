@@ -5,7 +5,7 @@ const { Router } = require('express');
 //rutas necesarias
 //const pokemon=require('./pokemon.js');
 const pokemons=require('./pokemons.js');
-//const types=require('./types.js');
+const types=require('./types.js');
 
 const router = Router();
 
@@ -14,6 +14,6 @@ const router = Router();
 
 //router.use('/pokemon', pokemon);
 router.use('/pokemons', pokemons);
-//router.use('/types', types);
+router.use('/types', types);
 
 module.exports = router;
