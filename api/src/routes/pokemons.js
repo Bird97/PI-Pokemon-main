@@ -1,23 +1,17 @@
 const { Router } =require('express');
 const router =Router();
-const {getAllPokemons,buscarPorId,crear} =require('../controllers/index.controllers');
+const {getPokemon,buscarPorId,crear} =require('../controllers/index.controllers');
 require('dotenv').config(); 
 //import { Pokemon, Type } from '../db'; //Datos de la base de datos
 const {pokeURL} = process.env;
 
-//Midleweres
-//traer info de la api
-
 //rutas
-router.get('/',async(req,res)=>{
-    const {name}=req.query;
-    let pokemons=await getAllPokemons();
-    res.send(pokemons);
-    });
 
+//devuelve todos los pokemones
+router.get('/',getPokemon);
 //ruta buscar por id
-router.get('/:id',buscarPorId);
+router.get('/:id', buscarPorId);
 
-router.post('/create', crear)
+//router.post('/create', crear)
 
 module.exports= router;
