@@ -2,7 +2,7 @@ const axios =require("axios");
 const e = require("express");
 //const fetch = require("node-fetch");
 require('dotenv').config(); 
-const {Types,Pokemons} =require('../db'); //Datos de la base de datos
+const {Type,Pokemon} =require('../db'); //Datos de la base de datos
 const {pokeURL} = process.env;
 
 //pedimpos datos de api
@@ -40,10 +40,10 @@ const getApiPkms= async()=>{
 //pedimos datos de db
 async function getDbPkms(req, res,next){
   try{
-  const poke= await Pokemons.findAll({
+  const poke= await Pokemon.findAll({
     include:{
       attributes: ["name"],
-      model: Types,
+      model: Type,
       through: {
         attributes: [],
       },
@@ -55,7 +55,6 @@ async function getDbPkms(req, res,next){
   res.status(404);
 }
 }
-
 //unimos ambos
 const getAllPokemons = async () => {
   const api = await getApiPkms();
@@ -66,61 +65,59 @@ const getAllPokemons = async () => {
   const total = api.concat(db);
   return total;
 }
-
 //crear pokemon
-// var iddb = 5000;
-// async function crear(req, res){
-//   try {
-//     let { name, image, hp, attack, defense, speed, height, weight, types} = req.body //Datos que necesito pedir
+ var iddb = 5000;
+async function crear(req, res){
+  try {
+    let { name, image, hp, attack, defence, speed, height, weight, type} = req.body
+    let encontrar = await Pokemon.findOne({  //si existe un pokemon con ese nombre no se devuelve un mensaje
+       where: {
+         name: name.toLowerCase(),
+       },
+     });
+    // //Primero verifico que el nombre este disponible.
+     if (encontrar)
+       return res.json({ msg: "El Pokemon ya existe." });
 
-//     let encontrar = await Pokemons.findOne({  //si existe un pokemon con ese nombre no se devuelve un mensaje
-//       where: {
-//         name: name.toLowerCase(),
-//       },
-//     });
-//     //Primero verifico que el nombre este disponible.
-//     if (encontrar)
-//       return res.json({ msg: "El Pokemon ya existe." });
+     let pokemon = await Pokemon.create({
+       id: iddb++,
+       name: name,
+      image,
+      hp,
+      attack,
+      defence,
+      speed,
+      height,
+      weight,
+    });
+    
+     if (!name) return res.json({ info: "El nombre es obligatorio" });
+     if(Array.isArray(type) && type.length){ //Consulto si lo que me llega en types es un arreglo y si tiene algo adentro.
+      let dbTypes = await Promise.all( //Armo una variable que dentro tendra una resolucion de promesas
+         type.map((e) => { // Agarro la data de types y le hago un map para verificar que cada elemento exista en nuestra tabla de types
+           return Type.findOne({where:{ name: e}}) 
+         })
+       )
+      await pokemon.setTypes(dbTypes) //Una vez que se resuelva la promesa del Pokemon.create, le agrego los types
 
-//     const pokemon = await Pokemons.create({
-//       id: iddb++,
-//       name: name,
-//       image,
-//       hp,
-//       attack,
-//       defense,
-//       speed,
-//       height,
-//       weight,
-//       types, 
-//     });
-  
-//     if (!name) return res.json({ info: "El nombre es obligatorio" });
-//     if(Array.isArray(types) && types.length){ //Consulto si lo que me llega en types es un arreglo y si tiene algo adentro.
-//       let dbTypes = await Promise.all( //Armo una variable que dentro tendra una resolucion de promesas
-//         types.map((e) => { // Agarro la data de types y le hago un map para verificar que cada elemento exista en nuestra tabla de types
-//           return Types.findOne({where:{ name: e}}) 
-//         })
-//       )
-//      await pokemon.setTypes(dbTypes) //Una vez que se resuelva la promesa del Pokemon.create, le agrego los types
-
-//      return res.send("Pokemon creado exitosamente");
-//     }
-//   } catch (err) {
-//     console.log(err)
-//     res.status(400).send("Error en data");
-//   }
-// };
-
+      return res.send("Pokemon creado exitosamente");
+     }
+  } catch (err) {   
+    res.status(400).send("Error en data");
+  }
+};
 //buscamos por id
 async function buscarPorId (req,res) { 
   const {id}=req.params;
   try{   
-    if(id>5000){
-      datab= await Pokemons.findByPk(id); //esto debes pasarlo a json
-      console.log(datab);
-      //return datab;//.data.toJSON();
-      
+    if(id>=5000){
+      datab= await Pokemon.findByPk(id); //esto debes pasarlo a json
+      if(datab){
+        return res.status(200).send(datab);
+      }else{
+        return res.status(404).json({ err: `No se encontró un Pokemon para el id: ${id}` });
+      }
+      //return datab;//.data.toJSON();      
     }else{ 
       const pokemon= await axios.get(`${pokeURL}/pokemon/${id}`);
       const {name,weight,types,sprites,stats}= await pokemon.data;
@@ -141,67 +138,67 @@ async function buscarPorId (req,res) {
     }
 
   }catch(error){
-    console.log(error)
     res.status(404).json({ err: `No se encontró un Pokemon para el id: ${id}` });
   }
 
 }
 
-//pide todos los tipos de pokemon a la API
+//pide todos los tipos de pokemon a la API y los guarda en DB
 async function getAllTypes(){
   try{
     let contador=0;
     let types =(await axios(`${pokeURL}type`)).data.results.map(e=>({id:contador=contador+1, name:e.name}));
-    console.log(types);
-    //await Types.bulkCreate(types);//??
+    //console.log(types);
+    await Type.bulkCreate(types);//??
     console.log("Tipos de pokemon cargados en DB correctamente");
   }catch(e){
     console.log(e);
   }
 }
-
+//pide los tipos de pokemon a la DB
 function getTypesFromDb(req, res,next){
-  Types.findAll()
+  Type.findAll()
   .then(types=>res.send(types))
   .catch(e=>next(e))
 }
-
-
+//devuelve un pokemon
 async function getPokemon(req,res){
   const {name}=req.query;
-  const nam = name.slice(1, -1) //lo necesitamos sin comillas ejeje
-
-  //1 buscamos si existe en la API
-  try{
-    const pokemon= await axios.get(`https://pokeapi.co/api/v2/pokemon/${nam}`);
-    const {name,weight,types,sprites,stats}= await pokemon.data;
-        const poke={
-          id: pokemon.data.id,
-          name: name,
-          type: types.map((t) => t.type.name),
-          img: sprites.versions["generation-v"]["black-white"].animated
-            .front_default,
-          hp: stats[0].base_stat,
-          attack: stats[1].base_stat,
-          speed: stats[5].base_stat,
-          defence: stats[2].base_stat,
-          weight: weight,
-          height: pokemon.data.height,
-        };
-        return res.status(200).send(poke);//poke;     
-  }catch(e){
-    console.log(`${nam} no existe en la api`)
+  if(name){
+    const nam = name.slice(1,-1); 
+    try{        
+      const pokemon= await axios.get(`https://pokeapi.co/api/v2/pokemon/${nam}`);
+      const {name,weight,types,sprites,stats}= await pokemon.data;
+          const poke={
+            id: pokemon.data.id,
+            name: name,
+            type: types.map((t) => t.type.name),
+            img: sprites.versions["generation-v"]["black-white"].animated
+              .front_default,
+            hp: stats[0].base_stat,
+            attack: stats[1].base_stat,
+            speed: stats[5].base_stat,
+            defence: stats[2].base_stat,
+            weight: weight,
+            height: pokemon.data.height,
+          };
+          return res.status(200).send(poke);//poke;     
+    }catch(e){
+      console.log(`${nam} no existe en la api`)
+    }
   }
   //Buscamos si existe en la base de datos
-  let pokemons=await getDbPkms();
+  let pokemons=await getAllPokemons();
+  
   if(name!=undefined){
-    const poke=pokemons.filter(pokemon=>pokemon.name==nam);
-    if(!poke){
-      return res.send(poke)
+    let poke=pokemons.filter(pokemon=>pokemon.name==name.slice(1,-1));
+    if(poke){
+      return res.status(200).send(poke)
     }
      return res.status(500).send("No existe pokemon con ese nombre")
     }
-  res.send(Pokemons);
+  
+  res.status(200).send(pokemons);
 }
 
 //unimos todo 
@@ -211,6 +208,6 @@ module.exports={
     getTypesFromDb,
     getAllPokemons,
     buscarPorId,
-    //crear,
+    crear,
     getPokemon,
 }

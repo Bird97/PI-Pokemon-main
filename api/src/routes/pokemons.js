@@ -12,6 +12,6 @@ router.get('/',getPokemon);
 //ruta buscar por id
 router.get('/:id', buscarPorId);
 
-//router.post('/create', crear)
+router.post('/', crear)
 
 module.exports= router;
